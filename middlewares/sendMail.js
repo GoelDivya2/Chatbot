@@ -1,45 +1,44 @@
-import dns from "dns";
-dns.setDefaultResultOrder("ipv4first");
 import nodemailer from "nodemailer";
+import dns from "dns";
+
+// FORCE GLOBAL IPv4 ONLY (safe but not enough alone)
+dns.setDefaultResultOrder("ipv4first");
 
 const sendMail = async (email, subject, otp) => {
   try {
     console.log("📩 Sending email to:", email);
 
-   const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.Gmail,
-    pass: process.env.Password,
-  },
-  family: 4, // 🔥 FORCE IPv4
-});
-    await transporter.verify();
-    console.log("✅ SMTP connection verified");
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
 
-    const mailOptions = {
+      auth: {
+        user: process.env.Gmail,
+        pass: process.env.Password,
+      },
+
+      // 🔥 CRITICAL FIX (this is what actually stops IPv6)
+      lookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+      },
+    });
+
+    await transporter.verify();
+    console.log("SMTP OK");
+
+    const info = await transporter.sendMail({
       from: process.env.Gmail,
       to: email,
-      subject: subject,
-      html: `
-        <div style="font-family: Arial; text-align:center;">
-          <h1 style="color:red;">OTP Verification</h1>
-          <p>Your OTP is:</p>
-          <h2 style="color:#7b68ee;">${otp}</h2>
-          <p>This OTP is valid for a short time.</p>
-        </div>
-      `,
-    };
+      subject,
+      html: `<h2>Your OTP: ${otp}</h2>`,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("✅ Email sent successfully:", info.response);
+    console.log("EMAIL SENT:", info.response);
     return true;
 
-  } catch (error) {
-    console.log("❌ FULL EMAIL ERROR:", error);
+  } catch (err) {
+    console.log("FULL EMAIL ERROR:", err);
     return false;
   }
 };
