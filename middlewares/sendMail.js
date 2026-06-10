@@ -5,7 +5,7 @@ const sendMail = async (email, subject, otp) => {
     console.log("📩 Sending email to:", email);
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
+      service: "gmail", 
       port: 465,
       secure: true, // SSL
       auth: {
