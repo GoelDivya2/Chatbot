@@ -9,14 +9,14 @@ const sendMail = async (email, subject, otp) => {
       port: 465,
       secure: true, // SSL
       auth: {
-        user: process.env.GMAIL,
-        pass: process.env.PASSWORD,
+        user: process.env.Gmail,
+        pass: process.env.Password,
       },
       family: 4, // 🔥 fixes Render IPv6 issue
     });
 
     const mailOptions = {
-      from: process.env.GMAIL,
+      from: process.env.Gmail,
       to: email,
       subject: subject,
       html: `
