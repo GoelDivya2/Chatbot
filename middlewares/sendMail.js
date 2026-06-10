@@ -4,13 +4,18 @@ const sendMail = async (email, subject, otp) => {
   try {
     console.log("📩 Sending email to:", email);
 
-   const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.Gmail,
-    pass: process.env.Password,
-  },
-});
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // SSL
+      auth: {
+        user: process.env.Gmail,
+        pass: process.env.Password,
+      },
+    });
+
+    await transporter.verify();
+    console.log("✅ SMTP connection verified");
 
     const mailOptions = {
       from: process.env.Gmail,
@@ -28,11 +33,11 @@ const sendMail = async (email, subject, otp) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    console.log("✅ Email sent:", info.response);
+    console.log("✅ Email sent successfully:", info.response);
     return true;
 
   } catch (error) {
-    console.log("❌ Email error:", error.message);
+    console.log("❌ FULL EMAIL ERROR:", error);
     return false;
   }
 };
