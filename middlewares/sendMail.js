@@ -4,16 +4,13 @@ const sendMail = async (email, subject, otp) => {
   try {
     console.log("📩 Sending email to:", email);
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail", 
-      port: 465,
-      secure: true, // SSL
-      auth: {
-        user: process.env.Gmail,
-        pass: process.env.Password,
-      },
-      family: 4, // 🔥 fixes Render IPv6 issue
-    });
+   const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.Gmail,
+    pass: process.env.Password,
+  },
+});
 
     const mailOptions = {
       from: process.env.Gmail,
