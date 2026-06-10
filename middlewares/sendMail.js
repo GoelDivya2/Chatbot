@@ -1,8 +1,4 @@
 import nodemailer from "nodemailer";
-import dns from "dns";
-
-// FORCE GLOBAL IPv4 ONLY (safe but not enough alone)
-dns.setDefaultResultOrder("ipv4first");
 
 const sendMail = async (email, subject, otp) => {
   try {
@@ -11,34 +7,36 @@ const sendMail = async (email, subject, otp) => {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
-      secure: false,
-
+      secure: false, // IMPORTANT
       auth: {
         user: process.env.Gmail,
-        pass: process.env.Password,
-      },
-
-      // 🔥 CRITICAL FIX (this is what actually stops IPv6)
-      lookup: (hostname, options, callback) => {
-        dns.lookup(hostname, { family: 4 }, callback);
+        pass: process.env.Password, // Gmail App Password only
       },
     });
 
+    // verify connection first (important for debugging)
     await transporter.verify();
-    console.log("SMTP OK");
+    console.log("✅ SMTP connected");
 
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from: process.env.Gmail,
       to: email,
-      subject,
-      html: `<h2>Your OTP: ${otp}</h2>`,
-    });
+      subject: subject,
+      html: `
+        <div style="text-align:center;font-family:Arial">
+          <h2>OTP Verification</h2>
+          <h1 style="color:blue">${otp}</h1>
+        </div>
+      `,
+    };
 
-    console.log("EMAIL SENT:", info.response);
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("✅ EMAIL SENT:", info.response);
     return true;
 
-  } catch (err) {
-    console.log("FULL EMAIL ERROR:", err);
+  } catch (error) {
+    console.log("❌ EMAIL ERROR:", error);
     return false;
   }
 };
