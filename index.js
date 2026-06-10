@@ -19,7 +19,10 @@ import chatRoutes from "./routes/chatRoutes.js";
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 
-app.listen(process.env.PORT, () => {
-  console.log(`server is working on port ${process.env.PORT}`);
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`server is working on port ${PORT}`);
   connectDb();
 });
+
