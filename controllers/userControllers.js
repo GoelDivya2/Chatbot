@@ -1,10 +1,13 @@
 import sendMail from "../middlewares/sendMail.js";
 import { User } from "../models/User.js";
 import jwt from "jsonwebtoken";
-
 export const loginUser = async (req, res) => {
+    console.log("🔥 LOGIN API HIT");
+
   try {
     const { email } = req.body;
+
+    console.log("EMAIL RECEIVED BY BACKEND:", email);
 
     let user = await User.findOne({ email });
 
@@ -16,9 +19,11 @@ export const loginUser = async (req, res) => {
 
     const otp = Math.floor(Math.random() * 1000000);
 
-    const verifyToken = jwt.sign({ user, otp }, process.env.Activation_sec, {
-      expiresIn: "5m",
-    });
+    const verifyToken = jwt.sign(
+      { user, otp },
+      process.env.Activation_sec,
+      { expiresIn: "5d" }
+    );
 
     await sendMail(email, "ChatBot", otp);
 
@@ -59,7 +64,7 @@ export const verifyUser = async (req, res) => {
       token,
     });
   } catch (error) {
-    res.status(500).json({
+    res.status(500).json({ 
       message: error.message,
     });
   }
