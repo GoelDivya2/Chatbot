@@ -1,38 +1,53 @@
+
 import sendMail from "../middlewares/sendMail.js";
 import { User } from "../models/User.js";
+import { Otp } from "../models/Otp.js";
 import jwt from "jsonwebtoken";
-export const loginUser = async (req, res) => {
-    console.log("🔥 LOGIN API HIT");
+import bcrypt from "bcrypt";
 
+export const loginUser = async (req, res) => {
   try {
     const { email } = req.body;
 
-    console.log("EMAIL RECEIVED BY BACKEND:", email);
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
 
     let user = await User.findOne({ email });
 
     if (!user) {
-      user = await User.create({
-        email,
-      });
+      user = await User.create({ email });
     }
 
-    const otp = Math.floor(Math.random() * 1000000);
+    // Generate a six-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
-    const verifyToken = jwt.sign(
-      { user, otp },
-      process.env.Activation_sec,
-      { expiresIn: "5d" }
-    );
+    // Hash OTP before storing it
+    const otpHash = await bcrypt.hash(String(otp), 12);
+
+    // OTP expires in 5 minutes
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+   await Otp.findOneAndUpdate(
+  { userId: user._id },
+  { otpHash, expiresAt },
+  {
+    upsert: true,
+    returnDocument: "after",
+    runValidators: true,
+  }
+);
 
     await sendMail(email, "ChatBot", otp);
 
-    res.json({
-      message: "Otp send to your mail",
-      verifyToken,
+    // No verification JWT is needed
+    return res.json({
+      message: "OTP sent to your email",
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message,
     });
   }
@@ -40,31 +55,68 @@ export const loginUser = async (req, res) => {
 
 export const verifyUser = async (req, res) => {
   try {
-    const { otp, verifyToken } = req.body;
+    const { email, otp } = req.body;
 
-    const verify = jwt.verify(verifyToken, process.env.Activation_sec);
-
-    if (!verify)
+    if (!email || !/^\d{6}$/.test(String(otp ?? ""))) {
       return res.status(400).json({
-        message: "Otp Expired",
+        message: "Email and a valid six-digit OTP are required",
       });
+    }
 
-    if (verify.otp !== otp)
+    const user = await User.findOne({ email });
+
+    if (!user) {
       return res.status(400).json({
-        message: "Wrong otp",
+        message: "Invalid email or OTP",
       });
+    }
 
-    const token = jwt.sign({ _id: verify.user._id }, process.env.Jwt_sec, {
-      expiresIn: "5d",
+    const otpRecord = await Otp.findOne({
+      userId: user._id,
     });
 
-    res.json({
+    if (!otpRecord || otpRecord.expiresAt.getTime() <= Date.now()) {
+      return res.status(400).json({
+        message: "OTP expired or not found. Request a new OTP.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      String(otp),
+      otpRecord.otpHash
+    );
+
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Wrong OTP",
+      });
+    }
+
+    // Consume the OTP so it cannot be reused
+    const consumed = await Otp.deleteOne({
+      _id: otpRecord._id,
+    });
+
+    if (consumed.deletedCount !== 1) {
+      return res.status(400).json({
+        message: "OTP already used. Request a new OTP.",
+      });
+    }
+
+    // Create login JWT only after successful verification
+    const token = jwt.sign(
+      { _id: user._id },
+      process.env.Jwt_sec,
+      { expiresIn: "5d" }
+    );
+
+    return res.json({
       message: "Logged in successfully",
-      user: verify.user,
+      user,
       token,
     });
   } catch (error) {
-    res.status(500).json({ 
+    return res.status(500).json({
       message: error.message,
     });
   }
@@ -73,7 +125,6 @@ export const verifyUser = async (req, res) => {
 export const myProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-
     res.json(user);
   } catch (error) {
     res.status(500).json({
